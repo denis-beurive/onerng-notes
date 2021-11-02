@@ -18,7 +18,7 @@ The complete installation procedure is given below. Please note that the officia
 
 The command to reaload the rules is "`sudo udevadm control --reload-rules`".
 
-**Note**: I install "`python-gpg`" using "`pip`", within a virtual environment.
+**Note**: I install "`python-gnupg`" using "`pip`", within a virtual environment.
 
 ```bash
 sudo apt-get install rng-tools at openssl
