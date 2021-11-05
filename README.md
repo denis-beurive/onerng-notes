@@ -1,7 +1,8 @@
+# OneRNG notes
 
+This repository contains notes about the [OneRNG random number generator](https://onerng.info/).
 
-I installed the required software on Ubuntu 21.10 ("impish").
-
+These notes apply to Ubuntu `21.10` ("impish").
 
 ```bash
 $ uname -a
@@ -14,23 +15,21 @@ Release:    21.10
 Codename:   impish
 ```
 
-The complete installation procedure is given below. Please note that the official procedure does not work for the version of Ubuntu I use.
-
-The command to reaload the rules is "`sudo udevadm control --reload-rules`".
+# Quick install
 
 **Note**: I install "`python-gnupg`" using "`pip`", within a virtual environment.
 
 ```bash
-sudo apt-get install rng-tools at openssl
-wget -O onerng_3.6.orig.tar.gz https://github.com/OneRNG/onerng.github.io/blob/master/sw/onerng_3.6.orig.tar.gz?raw=true
-md5sum onerng_3.6.orig.tar.gz
-tar zxvf onerng_3.6.orig.tar.gz
-cd onerng_3.6.orig
-sudo make install
-sudo udevadm control --reload-rules; echo $?
+$ sudo apt-get install rng-tools at openssl
+$ wget -O onerng_3.6.orig.tar.gz https://github.com/OneRNG/onerng.github.io/blob/master/sw/onerng_3.6.orig.tar.gz?raw=true
+$ md5sum onerng_3.6.orig.tar.gz
+$ tar zxvf onerng_3.6.orig.tar.gz
+$ cd onerng_3.6.orig
+$ sudo make install
+$ sudo udevadm control --reload-rules; echo $?
 ```
 
-I have read threads on this forum, so I made some tests:
+Install the python package "`python-gnupg`" within a virtual environment:
 
 ```bash
 $ mkdir onerng && cd onerng
@@ -39,34 +38,73 @@ $ source venv/bin/activate
 (venv) $ python --version
 Python 3.9.7
 (venv) $ pip install python-gnupg
-Requirement already satisfied: python-gnupg in ./venv/lib/python3.9/site-packages (0.4.7)
+...
+```
+
+Now you can run the script `/sbin/onerng.sh` (not mandatory):
+
+```bash
 (venv) $ sudo /sbin/onerng.sh daemon ttyACM0 ; echo $?
 nohup: redirection de la sortie d'erreur standard vers la sortie standard
 0
 ```
 
-OK, it seems that everything is fine:
-
+# Check that the device is recognized
 
 ```bash
-(venv) $ sudo dmesg
-[15003.792514] perf: interrupt took too long (4995 > 4968), lowering kernel.perf_event_max_sample_rate to 40000
-[15319.701445] audit: type=1400 audit(1635883955.014:66): apparmor="STATUS" operation="profile_load" profile="unconfined" name="/usr/sbin/haveged" pid=11589 comm="apparmor_parser"
-[15532.082788] usb 2-1.6: USB disconnect, device number 4
-[15534.823818] usb 2-1.5: new full-speed USB device number 5 using ehci-pci
-[15534.937052] usb 2-1.5: New USB device found, idVendor=1d50, idProduct=6086, bcdDevice= 0.09
-[15534.937072] usb 2-1.5: New USB device strings: Mfr=1, Product=3, SerialNumber=3
-[15534.937079] usb 2-1.5: Product: 00
-[15534.937083] usb 2-1.5: Manufacturer: Moonbase Otago http://www.moonbaseotago.com/random
-[15534.937088] usb 2-1.5: SerialNumber: 00
-[15534.939180] cdc_acm 2-1.5:1.0: ttyACM0: USB ACM device
-[15797.400014] userif-3: sent link down event.
-[15797.400034] userif-3: sent link up event.
-[15798.006996] userif-3: sent link down event.
-[15798.007014] userif-3: sent link up event.
+$ sudo dmesg
+[42895.959680] usb 2-1.5: new full-speed USB device number 4 using ehci-pci
+[42896.072325] usb 2-1.5: New USB device found, idVendor=1d50, idProduct=6086, bcdDevice= 0.09
+[42896.072344] usb 2-1.5: New USB device strings: Mfr=1, Product=3, SerialNumber=3
+[42896.072351] usb 2-1.5: Product: 00
+[42896.072355] usb 2-1.5: Manufacturer: Moonbase Otago http://www.moonbaseotago.com/random
+[42896.072360] usb 2-1.5: SerialNumber: 00
+[42896.110325] cdc_acm 2-1.5:1.0: ttyACM0: USB ACM device
+[42896.110637] usbcore: registered new interface driver cdc_acm
+[42896.110641] cdc_acm: USB Abstract Control Model driver for USB modems and ISDN adapters
+```
+ 
+You can see that the hardware is recognized as being a USB ACM device.
+It is accessible through [/dev/ttyACM0](https://rfc1149.net/blog/2013/03/05/what-is-the-difference-between-devttyusbx-and-devttyacmx/).
+
+# Get random data from the device
+
+You can read data from it by running the following command: 
+
+```bash
+sudo cat /dev/ttyACM0
 ```
 
-However:
+However, this is not very convenient. This _quick and dirty_ [Perl script](reader.pl) gives better result:
+
+```Perl
+use strict;
+
+open(my $fd, '<', '/dev/ttyACM0') or die "Cannot open /dev/ttyACM0: $!";
+binmode $fd;
+my $n=0;
+while($n++ < $ARGV[0]) {
+    my $data;
+    my $s;
+    read($fd, $data, 4) == 4 or die "Error while reading /dev/ttyACM0: $!";
+    printf("%x", $data);
+    print(unpack("H$s", $data));
+}
+close($fd);
+```
+
+Example:
+
+```bash
+$ sudo perl reader.pl 32
+0201050a0813070e030f0e130703060b07062230a01040d0b0e0202050c0f0523
+```
+
+> You get random data.
+
+# Problem
+
+There is a problem with `rng-tools`. The OS entropy pool is not stocked up with random data.
 
 ```bash
 (venv) $ systemctl restart rng-tools
@@ -85,7 +123,5 @@ nov. 02 22:16:25 labo systemd[1]: Started Add entropy to /dev/random 's pool a h
 nov. 02 22:16:25 labo rngd[19595]: read error
 nov. 02 22:16:25 labo rngd[19595]: read error
 ```
-
-And, when I run the command "`cat /dev/random >/dev/null`", the intensity of the orange LED does not change.
 
 
