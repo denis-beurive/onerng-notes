@@ -126,4 +126,52 @@ nov. 02 22:16:25 labo rngd[19595]: read error
 nov. 02 22:16:25 labo rngd[19595]: read error
 ```
 
+# Testing the RNG
+
+Install [dieharder](https://www.systutorials.com/docs/linux/man/1-dieharder/):
+
+```bash
+sudo apt install dieharder
+```
+
+Collect random data from the device:
+
+```bash
+sudo head -c $((1024 * 1024)) /dev/ttyACM0 > data.bin
+```
+
+```bash
+$ dieharder -a -f data.bin
+#=============================================================================#
+#            dieharder version 3.31.1 Copyright 2003 Robert G. Brown          #
+#=============================================================================#
+   rng_name    |           filename             |rands/second|
+        mt19937|                        data.bin|  8.24e+07  |
+#=============================================================================#
+        test_name   |ntup| tsamples |psamples|  p-value |Assessment
+#=============================================================================#
+   diehard_birthdays|   0|       100|     100|0.28119427|  PASSED  
+      diehard_operm5|   0|   1000000|     100|0.72859729|  PASSED  
+  diehard_rank_32x32|   0|     40000|     100|0.36826938|  PASSED  
+    diehard_rank_6x8|   0|    100000|     100|0.11765513|  PASSED  
+   diehard_bitstream|   0|   2097152|     100|0.07057076|  PASSED  
+        diehard_opso|   0|   2097152|     100|0.78313562|  PASSED  
+        diehard_oqso|   0|   2097152|     100|0.93090267|  PASSED  
+         diehard_dna|   0|   2097152|     100|0.06381576|  PASSED  
+diehard_count_1s_str|   0|    256000|     100|0.50218933|  PASSED  
+diehard_count_1s_byt|   0|    256000|     100|0.08184496|  PASSED  
+ diehard_parking_lot|   0|     12000|     100|0.51744758|  PASSED  
+    diehard_2dsphere|   2|      8000|     100|0.95713557|  PASSED  
+    diehard_3dsphere|   3|      4000|     100|0.39968818|  PASSED  
+     diehard_squeeze|   0|    100000|     100|0.96849682|  PASSED  
+        diehard_sums|   0|       100|     100|0.00201768|   WEAK   
+        diehard_runs|   0|    100000|     100|0.53251554|  PASSED  
+        diehard_runs|   0|    100000|     100|0.14528869|  PASSED  
+       diehard_craps|   0|    200000|     100|0.76439758|  PASSED  
+       diehard_craps|   0|    200000|     100|0.97937725|  PASSED  
+ marsaglia_tsang_gcd|   0|  10000000|     100|0.82442915|  PASSED  
+ marsaglia_tsang_gcd|   0|  10000000|     100|0.99688665|   WEAK   
+         sts_monobit|   1|    100000|     100|0.71439323|  PASSED  
+            sts_runs|   2|    100000|     100|0.22796351|  PASSED  
+```
 
