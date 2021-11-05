@@ -49,6 +49,8 @@ nohup: redirection de la sortie d'erreur standard vers la sortie standard
 0
 ```
 
+> [This version](onerng.sh) of the script `/sbin/onerng.sh` has been reviewed (to enforce shell safety).
+
 # Check that the device is recognized
 
 ```bash
