@@ -89,9 +89,9 @@ echo  cmd0 > "${device}"     # (2)
 echo  cmdO > "${device}"     # (3)
 ```
 
-> * put the tty device into raw mode (no echo, treat special like any other characters)
-> * put the device into the avalanche/whitening mode
-> * turn on the feed to the USB
+> * (1) put the tty device into raw mode (no echo, treat special like any other characters)
+> * (2) put the device into the avalanche/whitening mode
+> * (3) turn on the feed to the USB
 
 # Get random data from the device
 
