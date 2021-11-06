@@ -69,6 +69,30 @@ $ sudo dmesg
 You can see that the hardware is recognized as being a USB ACM device.
 It is accessible through [/dev/ttyACM0](https://rfc1149.net/blog/2013/03/05/what-is-the-difference-between-devttyusbx-and-devttyacmx/).
 
+```bash
+$ sudo dmesg | grep "USB ACM device" | perl -ne 'if ($_ =~ m/:[^:]+:\s*(ttyACM\d+)\s*:/) { print "/dev/${1}\n"; }'
+/dev/ttyACM0
+```
+
+# Configure the device
+
+See [this document](http://moonbaseotago.com/onerng/#Generic):
+
+```bash
+sudo su -
+device=$(dmesg | grep "USB ACM device" | perl -ne 'if ($_ =~ m/:[^:]+:\s*(ttyACM\d+)\s*:/) { print "/dev/${1}\n"; }')
+chown root "${device}"  
+chgrp root "${device}" 
+chmod 600 "${device}"
+stty raw -echo < "${device}" # (1)
+echo  cmd0 > "${device}"     # (2)
+echo  cmdO > "${device}"     # (3)
+```
+
+> * put the tty device into raw mode (no echo, treat special like any other characters)
+> * put the device into the avalanche/whitening mode
+> * turn on the feed to the USB
+
 # Get random data from the device
 
 You can read data from it by running the following command: 
@@ -104,28 +128,6 @@ $ sudo perl reader.pl 32
 
 > You get random data.
 
-# Problem
-
-There is a problem with `rng-tools`. The OS entropy pool is not stocked up with random data.
-
-```bash
-(venv) $ systemctl restart rng-tools
-(venv) $ systemctl status rng-tools
-● rng-tools.service - Add entropy to /dev/random 's pool a hardware RNG
-     Loaded: loaded (/lib/systemd/system/rng-tools.service; enabled; vendor preset: enabled)
-     Active: active (running) since Tue 2021-11-02 22:16:25 CET; 2s ago
-   Main PID: 19595 (rngd)
-      Tasks: 1 (limit: 18478)
-     Memory: 276.0K
-        CPU: 10ms
-     CGroup: /system.slice/rng-tools.service
-             └─19595 /usr/sbin/rngd -r /dev/hwrng -f
-
-nov. 02 22:16:25 labo systemd[1]: Started Add entropy to /dev/random 's pool a hardware RNG.
-nov. 02 22:16:25 labo rngd[19595]: read error
-nov. 02 22:16:25 labo rngd[19595]: read error
-```
-
 # Testing the RNG
 
 Install [dieharder](https://www.systutorials.com/docs/linux/man/1-dieharder/):
@@ -137,7 +139,8 @@ sudo apt install dieharder
 Collect random data from the device:
 
 ```bash
-sudo head -c $((1024 * 1024)) /dev/ttyACM0 > data.bin
+sudo su -
+head -c $((1024 * 1024)) /dev/ttyACM0 > data.bin
 ```
 
 ```bash
@@ -175,3 +178,24 @@ diehard_count_1s_byt|   0|    256000|     100|0.08184496|  PASSED
             sts_runs|   2|    100000|     100|0.22796351|  PASSED  
 ```
 
+# Problem
+
+There is a problem with `rng-tools`. The OS entropy pool is not stocked up with random data.
+
+```bash
+(venv) $ systemctl restart rng-tools
+(venv) $ systemctl status rng-tools
+● rng-tools.service - Add entropy to /dev/random 's pool a hardware RNG
+     Loaded: loaded (/lib/systemd/system/rng-tools.service; enabled; vendor preset: enabled)
+     Active: active (running) since Tue 2021-11-02 22:16:25 CET; 2s ago
+   Main PID: 19595 (rngd)
+      Tasks: 1 (limit: 18478)
+     Memory: 276.0K
+        CPU: 10ms
+     CGroup: /system.slice/rng-tools.service
+             └─19595 /usr/sbin/rngd -r /dev/hwrng -f
+
+nov. 02 22:16:25 labo systemd[1]: Started Add entropy to /dev/random 's pool a hardware RNG.
+nov. 02 22:16:25 labo rngd[19595]: read error
+nov. 02 22:16:25 labo rngd[19595]: read error
+```
