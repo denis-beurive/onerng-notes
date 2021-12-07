@@ -199,3 +199,75 @@ nov. 02 22:16:25 labo systemd[1]: Started Add entropy to /dev/random 's pool a h
 nov. 02 22:16:25 labo rngd[19595]: read error
 nov. 02 22:16:25 labo rngd[19595]: read error
 ```
+
+You can see that the command executed is `/usr/sbin/rngd -r /dev/hwrng -f`.
+
+A quick look at the man page for `rngd` tells us that:
+
+> rngd - Check and feed random data from hardware device to kernel random device
+> 
+> * `-f` Do not fork and become a daemon
+> * `-r` Kernel device used for random number input (default: `/dev/hwrng`)
+> * `-o` Kernel device used for random number output (default: `/dev/random`)
+
+Thus, let's try this:
+
+```bash
+$ sudo rngd -f -r /dev/ttyACM0 -o /dev/random
+```
+
+It works!
+
+However, the command below does **NOT** work:
+
+```bash
+$ sudo rngd -f -r /dev/hwrng -o /dev/random 
+read error
+
+read error
+```
+
+**Conclusion**: it seems that we should specify the value `/dev/ttyACM0` for the command line optin `-r` (instead of the value `/dev/hwrng`).
+
+The configuration file for `rng-tools` is supposed to be `/etc/default/rng-tools`.
+
+```
+$ cat /etc/default/rng-tools 
+# Configuration for the rng-tools initscript
+# $Id: rng-tools.default,v 1.1.2.5 2008-06-10 19:51:37 hmh Exp $
+
+# This is a POSIX shell fragment
+
+# Set to the input source for random data, leave undefined
+# for the initscript to attempt auto-detection.  Set to /dev/null
+# for the viapadlock and tpm drivers.
+#HRNGDEVICE=/dev/hwrng
+#HRNGDEVICE=/dev/null
+HRNGDEVICE=/dev/ttyACM0
+
+# Additional options to send to rngd. See the rngd(8) manpage for
+# more information.  Do not specify -r/--rng-device here, use
+# HRNGDEVICE for that instead.
+#RNGDOPTIONS="--hrng=intelfwh --fill-watermark=90% --feed-interval=1"
+#RNGDOPTIONS="--hrng=viakernel --fill-watermark=90% --feed-interval=1"
+#RNGDOPTIONS="--hrng=viapadlock --fill-watermark=90% --feed-interval=1"
+#RNGDOPTIONS="--hrng=tpm --fill-watermark=90% --feed-interval=1"
+```
+
+And then: 
+
+```bash
+$ sudo /etc/init.d/rng-tools stop && sudo /etc/init.d/rng-tools start && echo "OK"
+Stopping rng-tools (via systemctl): rng-tools.service.
+Starting rng-tools (via systemctl): rng-tools.service.
+OK
+```
+
+But even if we set the value of `HRNGDEVICE` to `/dev/ttyACM0`, the value used for executing `rngd` is still the default value `/dev/hwrng`.
+
+**Conclusion**: it seems that the configuration file `/etc/default/rng-tools` is just ignored.
+
+
+
+
+
