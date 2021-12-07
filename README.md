@@ -229,7 +229,7 @@ read error
 
 **Conclusion**: it seems that we should specify the value `/dev/ttyACM0` for the command line optin `-r` (instead of the value `/dev/hwrng`).
 
-The configuration file for `rng-tools` is supposed to be `/etc/default/rng-tools`.
+The configuration file for `rng-tools` is supposed to be `/etc/default/rng-tools`. Please note that we add the line "`HRNGDEVICE=/dev/ttyACM0`" to the configuration file.
 
 ```
 $ cat /etc/default/rng-tools 
