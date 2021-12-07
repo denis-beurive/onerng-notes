@@ -257,17 +257,24 @@ HRNGDEVICE=/dev/ttyACM0
 And then: 
 
 ```bash
-$ sudo /etc/init.d/rng-tools stop && sudo /etc/init.d/rng-tools start && echo "OK"
+$ if [ -c /dev/ttyACM0 ]; then echo "OK"; fi
+OK
+$ sudo /etc/init.d/rng-tools stop && sudo /etc/init.d/rng-tools start && echo "OK" && tail /var/log/syslog
 Stopping rng-tools (via systemctl): rng-tools.service.
 Starting rng-tools (via systemctl): rng-tools.service.
 OK
+...
+Dec  7 22:08:24 labo systemd[1]: Stopping Add entropy to /dev/random 's pool a hardware RNG...
+Dec  7 22:08:24 labo systemd[1]: rng-tools.service: Deactivated successfully.
+Dec  7 22:08:24 labo systemd[1]: Stopped Add entropy to /dev/random 's pool a hardware RNG.
+Dec  7 22:08:24 labo systemd[1]: Started Add entropy to /dev/random 's pool a hardware RNG.
+Dec  7 22:08:24 labo rngd[10153]: read error
+Dec  7 22:08:24 labo rngd[10153]: read error
 ```
 
 But even if we set the value of `HRNGDEVICE` to `/dev/ttyACM0`, the value used for executing `rngd` is still the default value `/dev/hwrng`.
 
 **Conclusion**: it seems that the configuration file `/etc/default/rng-tools` is just ignored.
 
-
-
-
+> The script `/etc/init.d/rng-tools` loads the configuration file `/etc/default/rng-tools` (checked: no doubt about that). However, for some unknown reason the configuration is not used (although it should be).
 
