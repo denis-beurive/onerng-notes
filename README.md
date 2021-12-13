@@ -260,6 +260,8 @@ ExecStart=/usr/sbin/rngd -r /dev/ttyACM0 -f
 WantedBy=dev-hwrng.device
 ```
 
+> Please note that you may add the option `-n 1` (`/usr/sbin/rngd -r /dev/ttyACM0 -f -n 1`) if the OneRGN device may not be connected and you don't have TPM.
+
 ```bash
 $ systemctl stop rng-tools
 $ sudo systemctl daemon-reload
@@ -270,16 +272,16 @@ Now, let's try:
 ```bash
 $ sudo systemctl start rng-tools && sleep 1 && systemctl status rng-tools
 ● rng-tools.service - Add entropy to /dev/random 's pool a hardware RNG
-     Loaded: loaded (/lib/systemd/system/rng-tools.service; enabled; vendor preset: enabled)
-     Active: active (running) since Mon 2021-12-13 15:24:19 CET; 1s ago
-   Main PID: 13881 (rngd)
+     Loaded: loaded (/lib/systemd/system/rng-tools.service; enabled; vendor pre>
+     Active: active (running) since Mon 2021-12-13 16:10:35 CET; 13s ago
+   Main PID: 4245 (rngd)
       Tasks: 1 (limit: 18478)
      Memory: 276.0K
-        CPU: 9ms
+        CPU: 10ms
      CGroup: /system.slice/rng-tools.service
-             └─13881 /usr/sbin/rngd -r /dev/ttyACM0 -f -n 1
+             └─4245 /usr/sbin/rngd -r /dev/ttyACM0 -f
 
-déc. 13 15:24:19 labo systemd[1]: Started Add entropy to /dev/random 's pool a hardware RNG.
+déc. 13 16:10:35 labo systemd[1]: Started Add entropy to /dev/random 's pool a hardware RNG.
 ```
 
 That's it !
@@ -292,6 +294,16 @@ $ sudo perl reader.pl /dev/random 32
 ```
 
 > Please see [this script](reader.pl).
+
+You may configure the OS so the service automatically starts at boot time:
+
+```bash
+$ sudo systemctl enable rng-tools
+Synchronizing state of rng-tools.service with SysV service script with /lib/systemd/systemd-sysv-install.
+Executing: /lib/systemd/systemd-sysv-install enable rng-tools
+```
+
+> Please note that, if you do that, make sure to plug the OneRNG device!
 
 ## Notes
 
@@ -326,3 +338,4 @@ This file is loaded by the script `/etc/init.d/rng-tools` (that should nor be us
 > * https://bugzilla.redhat.com/show_bug.cgi?id=892178
 > * https://paolozaino.wordpress.com/2021/02/21/linux-configure-and-use-your-tpm-2-0-module-on-linux/
 > * https://wikimho.com/fr/q/askubuntu/414747
+
