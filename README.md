@@ -178,9 +178,13 @@ diehard_count_1s_byt|   0|    256000|     100|0.08184496|  PASSED
             sts_runs|   2|    100000|     100|0.22796351|  PASSED  
 ```
 
-# Problem
+# Problem (Ubunty 21.10) & solution
+
+## The problem (Ubunty 21.10)
 
 There is a problem with `rng-tools`. The OS entropy pool is not stocked up with random data.
+
+Please run (as `root`): `systemctl restart rng-tools && systemctl status rng-tools`
 
 ```bash
 (venv) $ systemctl restart rng-tools
@@ -200,7 +204,26 @@ nov. 02 22:16:25 labo rngd[19595]: read error
 nov. 02 22:16:25 labo rngd[19595]: read error
 ```
 
-You can see that the command executed is `/usr/sbin/rngd -r /dev/hwrng -f`.
+## The solution
+
+> According to the Ubuntu documentation, we should use the _Systemd systemctl utility_ (instead of the _init_ scripts in the `/etc/init.d` directory).
+
+You can see that:
+* the executed script is `/lib/systemd/system/rng-tools.service`.
+* this script executes the command `/usr/sbin/rngd -r /dev/hwrng -f`.
+
+```bash
+$ cat /lib/systemd/system/rng-tools.service
+[Unit]
+Description=Add entropy to /dev/random 's pool a hardware RNG
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/rngd -r /dev/hwrng -f
+
+[Install]
+WantedBy=dev-hwrng.device
+```
 
 A quick look at the man page for `rngd` tells us that:
 
@@ -209,25 +232,56 @@ A quick look at the man page for `rngd` tells us that:
 > * `-f` Do not fork and become a daemon
 > * `-r` Kernel device used for random number input (default: `/dev/hwrng`)
 > * `-o` Kernel device used for random number output (default: `/dev/random`)
+> * `-n 0|1` Do not use tpm as a source of random number input (default: `0`)
 
-Thus, let's try this:
+Let's configure `rngd` so that:
+
+* we want `rngd` to look for random number input in `/dev/ttyACM0`.
+* we don't want to use a TPM as a source of random number input.
+
+> Please note that, even if you tell `rngd` to look for random number input in `/dev/ttyACM0`, then you need to tell it not to look for random number input in a `TPM`... That's weird...
+>
+> Links about TPM:
+> * https://bugzilla.redhat.com/show_bug.cgi?id=892178
+> * https://paolozaino.wordpress.com/2021/02/21/linux-configure-and-use-your-tpm-2-0-module-on-linux/
+> * https://wikimho.com/fr/q/askubuntu/414747
+
+Therefore, we modify the script `/lib/systemd/system/rng-tools.service` so that it runs the following command: `rngd -f -r /dev/ttyACM0 -n 1`
+
 
 ```bash
-$ sudo rngd -f -r /dev/ttyACM0 -o /dev/random
+$ cat /lib/systemd/system/rng-tools.service
+[Unit]
+Description=Add entropy to /dev/random 's pool a hardware RNG
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/rngd -r /dev/ttyACM0 -f -n 1
+
+[Install]
+WantedBy=dev-hwrng.device
 ```
 
-It works!
-
-However, the command below does **NOT** work:
+Now, let's try:
 
 ```bash
-$ sudo rngd -f -r /dev/hwrng -o /dev/random 
-read error
+$ sudo systemctl restart rng-tools && sleep 1 && systemctl status rng-tools
+● rng-tools.service - Add entropy to /dev/random 's pool a hardware RNG
+     Loaded: loaded (/lib/systemd/system/rng-tools.service; enabled; vendor preset: enabled)
+     Active: active (running) since Mon 2021-12-13 15:24:19 CET; 1s ago
+   Main PID: 13881 (rngd)
+      Tasks: 1 (limit: 18478)
+     Memory: 276.0K
+        CPU: 9ms
+     CGroup: /system.slice/rng-tools.service
+             └─13881 /usr/sbin/rngd -r /dev/ttyACM0 -f -n 1
 
-read error
+déc. 13 15:24:19 labo systemd[1]: Started Add entropy to /dev/random 's pool a hardware RNG.
 ```
 
-**Conclusion**: it seems that we should specify the value `/dev/ttyACM0` for the command line option `-r` (instead of the value `/dev/hwrng`).
+That's it !
+
+## Notes
 
 The configuration file for `rng-tools` is supposed to be `/etc/default/rng-tools`. Please note that we add the line "`HRNGDEVICE=/dev/ttyACM0`" to the configuration file.
 
@@ -254,150 +308,5 @@ HRNGDEVICE=/dev/ttyACM0
 #RNGDOPTIONS="--hrng=tpm --fill-watermark=90% --feed-interval=1"
 ```
 
-And then: 
-
-```bash
-$ if [ -c /dev/ttyACM0 ]; then echo "OK"; fi
-OK
-$ sudo /etc/init.d/rng-tools stop && sudo /etc/init.d/rng-tools start && echo "OK" && tail /var/log/syslog
-Stopping rng-tools (via systemctl): rng-tools.service.
-Starting rng-tools (via systemctl): rng-tools.service.
-OK
-...
-Dec  7 22:08:24 labo systemd[1]: Stopping Add entropy to /dev/random 's pool a hardware RNG...
-Dec  7 22:08:24 labo systemd[1]: rng-tools.service: Deactivated successfully.
-Dec  7 22:08:24 labo systemd[1]: Stopped Add entropy to /dev/random 's pool a hardware RNG.
-Dec  7 22:08:24 labo systemd[1]: Started Add entropy to /dev/random 's pool a hardware RNG.
-Dec  7 22:08:24 labo rngd[10153]: read error
-Dec  7 22:08:24 labo rngd[10153]: read error
-```
-
-But even if we set the value of `HRNGDEVICE` to `/dev/ttyACM0`, the value used for executing `rngd` is still the default value `/dev/hwrng`.
-
-**Conclusion**: it seems that the configuration file `/etc/default/rng-tools` is just ignored.
-
-> The script `/etc/init.d/rng-tools` loads the configuration file `/etc/default/rng-tools` (checked: no doubt about that). However, for some unknown reason the configuration is not used (although it should be).
-
-# Troubleshooting
-
-According to the Ubuntu documentation, we should use the Systemd systemctl utility (instead of the _init_ scripts in the `/etc/init.d` directory).
-
-```bash
-$ sudo systemctl status rng-tools
-● rng-tools.service - Add entropy to /dev/random 's pool a hardware RNG
-     Loaded: loaded (/lib/systemd/system/rng-tools.service; enabled; vendor preset: enabled)
-     Active: active (running) since Mon 2021-12-13 11:57:14 CET; 8min ago
-   Main PID: 5315 (rngd)
-      Tasks: 1 (limit: 18478)
-     Memory: 272.0K
-        CPU: 10ms
-     CGroup: /system.slice/rng-tools.service
-             └─5315 /usr/sbin/rngd -r /dev/hwrng -f
-
-déc. 13 11:57:14 labo systemd[1]: Started Add entropy to /dev/random 's pool a hardware RNG.
-déc. 13 11:57:14 labo rngd[5315]: read error
-déc. 13 11:57:14 labo rngd[5315]: read error
-```
-
-We can see that this command loads the file `/lib/systemd/system/rng-tools.service`.
-
-```bash
-$ cat /lib/systemd/system/rng-tools.service
-[Unit]
-Description=Add entropy to /dev/random 's pool a hardware RNG
-
-[Service]
-Type=simple
-ExecStart=/usr/sbin/rngd -r /dev/hwrng -f
-
-[Install]
-WantedBy=dev-hwrng.device
-```
-
-OK, so let's modify this configuration file by specifying  `/dev/ttyACM0` instead of `/dev/hwrng`.
-
-```bash
-$ cat /lib/systemd/system/rng-tools.service
-[Unit]
-Description=Add entropy to /dev/random 's pool a hardware RNG
-
-[Service]
-Type=simple
-ExecStart=/usr/sbin/rngd -r /dev/ttyACM0 -f
-
-[Install]
-WantedBy=dev-hwrng.device
-```
-
-And let's try again:
-
-```bash
-$ sudo systemctl start rng-tools
-Warning: The unit file, source configuration file or drop-ins of rng-tools.service changed on disk. Run 'systemctl daemon-reload' to reload units.
-$ sudo systemctl daemon-reload
-$ sleep 2
-denis@labo:~$ sudo systemctl start rng-tools
-denis@labo:~$ sudo systemctl status rng-tools
-● rng-tools.service - Add entropy to /dev/random 's pool a hardware RNG
-     Loaded: loaded (/lib/systemd/system/rng-tools.service; enabled; vendor preset: enabled)
-     Active: active (running) since Mon 2021-12-13 12:16:30 CET; 4s ago
-   Main PID: 6977 (rngd)
-      Tasks: 1 (limit: 18478)
-     Memory: 280.0K
-        CPU: 12ms
-     CGroup: /system.slice/rng-tools.service
-             └─6977 /usr/sbin/rngd -r /dev/ttyACM0 -f
-
-déc. 13 12:16:30 labo systemd[1]: Started Add entropy to /dev/random 's pool a hardware RNG.
-déc. 13 12:16:30 labo rngd[6977]: Unable to open file: /dev/tpm0
-```
-
-> See:
-> * https://bugzilla.redhat.com/show_bug.cgi?id=892178
-> * https://paolozaino.wordpress.com/2021/02/21/linux-configure-and-use-your-tpm-2-0-module-on-linux/
-> * https://wikimho.com/fr/q/askubuntu/414747
-
-```bash
-$ sudo dmesg | grep -i tpm
-[    1.362849] ima: No TPM chip found, activating TPM-bypass!
-```
-
-=> your kernel can **NOT** see the TPM module correctly.
-
-Si let's install it.
-
-```bash
-$ sudo  systemctl status tcsd
-Unit tcsd.service could not be found.
-$ sudo  systemctl status tcsd
-● trousers.service - LSB: starts tcsd
-     Loaded: loaded (/etc/init.d/trousers; generated)
-     Active: active (exited) since Mon 2021-12-13 12:38:57 CET; 7s ago
-       Docs: man:systemd-sysv-generator(8)
-    Process: 8442 ExecStart=/etc/init.d/trousers start (code=exited, status=0/SUCCESS)
-        CPU: 9ms
-
-déc. 13 12:38:57 labo systemd[1]: Starting LSB: starts tcsd...
-déc. 13 12:38:57 labo trousers[8442]:  * Starting Trusted Computing daemon tcsd
-déc. 13 12:38:57 labo trousers[8442]:  * device driver not loaded, skipping.
-déc. 13 12:38:57 labo systemd[1]: Started LSB: starts tcsd.
-$ sudo apt install tpm-tools -y
-$ ls -la /lib/modules/`uname -r`/kernel/drivers/char/tpm
-total 232
-drwxr-xr-x 3 root root  4096 déc.   7 18:05 .
-drwxr-xr-x 9 root root  4096 déc.   7 18:05 ..
-drwxr-xr-x 2 root root  4096 déc.   7 18:05 st33zp24
--rw-r--r-- 1 root root 13857 nov.   5 10:21 tpm_atmel.ko
--rw-r--r-- 1 root root 13321 nov.   5 10:21 tpm_i2c_atmel.ko
--rw-r--r-- 1 root root 19793 nov.   5 10:21 tpm_i2c_infineon.ko
--rw-r--r-- 1 root root 26745 nov.   5 10:21 tpm_i2c_nuvoton.ko
--rw-r--r-- 1 root root 24873 nov.   5 10:21 tpm_infineon.ko
--rw-r--r-- 1 root root 19689 nov.   5 10:21 tpm_nsc.ko
--rw-r--r-- 1 root root 20601 nov.   5 10:21 tpm_tis_i2c_cr50.ko
--rw-r--r-- 1 root root 23297 nov.   5 10:21 tpm_tis_spi.ko
--rw-r--r-- 1 root root 21377 nov.   5 10:21 tpm_vtpm_proxy.ko
--rw-r--r-- 1 root root 19281 nov.   5 10:21 xen-tpmfront.ko
-```
-
-
+This file is loaded by the script `/etc/init.d/rng-tools` (that should nor be used!). But the configuration seems to be ignored!
 
