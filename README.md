@@ -243,20 +243,9 @@ A quick look at the man page for `rngd` tells us that:
 > * `-o` Kernel device used for random number output (default: `/dev/random`)
 > * `-n 0|1` Do not use tpm as a source of random number input (default: `0`)
 
-Let's configure `rngd` so that:
+Let's configure `rngd` so that: we want `rngd` to look for random number input in `/dev/ttyACM0`.
 
-* we want `rngd` to look for random number input in `/dev/ttyACM0`.
-* we don't want to use a TPM as a source of random number input.
-
-> Please note that, even if you tell `rngd` to look for random number input in `/dev/ttyACM0`, then you need to tell it not to look for random number input in a `TPM`... That's weird...
->
-> Links about TPM:
-> * https://bugzilla.redhat.com/show_bug.cgi?id=892178
-> * https://paolozaino.wordpress.com/2021/02/21/linux-configure-and-use-your-tpm-2-0-module-on-linux/
-> * https://wikimho.com/fr/q/askubuntu/414747
-
-Therefore, we modify the script `/lib/systemd/system/rng-tools.service` so that it runs the following command: `rngd -f -r /dev/ttyACM0 -n 1`
-
+Therefore, we modify the script `/lib/systemd/system/rng-tools.service` so that it runs the following command: `rngd -f -r /dev/ttyACM0`
 
 ```dosini
 $ cat /lib/systemd/system/rng-tools.service
@@ -265,16 +254,21 @@ Description=Add entropy to /dev/random 's pool a hardware RNG
 
 [Service]
 Type=simple
-ExecStart=/usr/sbin/rngd -r /dev/ttyACM0 -f -n 1
+ExecStart=/usr/sbin/rngd -r /dev/ttyACM0 -f
 
 [Install]
 WantedBy=dev-hwrng.device
 ```
 
+```bash
+$ systemctl stop rng-tools
+$ sudo systemctl daemon-reload
+```
+
 Now, let's try:
 
 ```bash
-$ sudo systemctl restart rng-tools && sleep 1 && systemctl status rng-tools
+$ sudo systemctl start rng-tools && sleep 1 && systemctl status rng-tools
 ● rng-tools.service - Add entropy to /dev/random 's pool a hardware RNG
      Loaded: loaded (/lib/systemd/system/rng-tools.service; enabled; vendor preset: enabled)
      Active: active (running) since Mon 2021-12-13 15:24:19 CET; 1s ago
@@ -328,3 +322,7 @@ HRNGDEVICE=/dev/ttyACM0
 
 This file is loaded by the script `/etc/init.d/rng-tools` (that should nor be used!). But the configuration seems to be ignored!
 
+> Links about TPM:
+> * https://bugzilla.redhat.com/show_bug.cgi?id=892178
+> * https://paolozaino.wordpress.com/2021/02/21/linux-configure-and-use-your-tpm-2-0-module-on-linux/
+> * https://wikimho.com/fr/q/askubuntu/414747
