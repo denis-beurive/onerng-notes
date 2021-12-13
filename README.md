@@ -187,9 +187,9 @@ diehard_count_1s_byt|   0|    256000|     100|0.08184496|  PASSED
             sts_runs|   2|    100000|     100|0.22796351|  PASSED  
 ```
 
-# Problem (Ubunty 21.10) & solution
+# Problem (Ubuntu 21.10) & solution
 
-## The problem (Ubunty 21.10)
+## The problem (Ubuntu 21.10)
 
 There is a problem with `rng-tools`. The OS entropy pool is not stocked up with random data.
 
