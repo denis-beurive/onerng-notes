@@ -212,7 +212,7 @@ You can see that:
 * the executed script is `/lib/systemd/system/rng-tools.service`.
 * this script executes the command `/usr/sbin/rngd -r /dev/hwrng -f`.
 
-```bash
+```dosini
 $ cat /lib/systemd/system/rng-tools.service
 [Unit]
 Description=Add entropy to /dev/random 's pool a hardware RNG
@@ -249,7 +249,7 @@ Let's configure `rngd` so that:
 Therefore, we modify the script `/lib/systemd/system/rng-tools.service` so that it runs the following command: `rngd -f -r /dev/ttyACM0 -n 1`
 
 
-```bash
+```dosini
 $ cat /lib/systemd/system/rng-tools.service
 [Unit]
 Description=Add entropy to /dev/random 's pool a hardware RNG
