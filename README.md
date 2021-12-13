@@ -106,24 +106,32 @@ However, this is not very convenient. This _quick and dirty_ [Perl script](reade
 ```perl
 use strict;
 
-my $INPUT = '/dev/ttyACM0';
+if (int(@ARGV) != 2) {
+    printf("Usage: perl reader.pl </path/to/device> <number of bytes> (%d)\n", int(@ARGV));
+    exit 1;
+}
+
+my $INPUT = $ARGV[0];
 open(my $fd, '<', $INPUT) or die "Cannot open ${INPUT}: $!";
 binmode $fd;
 my $n=0;
-while($n++ < $ARGV[0]) {
+while($n++ < $ARGV[1]) {
     my $data;
     my $s;
     read($fd, $data, 4) == 4 or die "Error while reading ${INPUT}: $!";
     printf("%x", $data);
-    print(unpack("H$s", $data));
+    printf(unpack("H$s", $data));
 }
+print("\n");
 close($fd);
 ```
+
+> See [this script](reader.pl).
 
 Example:
 
 ```bash
-$ sudo perl reader.pl 32
+$ sudo perl reader.pl /dev/ttyACM0 32
 0201050a0813070e030f0e130703060b07062230a01040d0b0e0202050c0f0523
 ```
 
@@ -284,27 +292,12 @@ That's it !
 
 Just for fun, let's read random data from `/dev/random`.
 
-```perl
-use strict;
-
-my $INPUT = '/dev/random'
-open(my $fd, '<', $INPUT) or die "Cannot open ${INPUT}: $!";
-binmode $fd;
-my $n=0;
-while($n++ < $ARGV[0]) {
-    my $data;
-    my $s;
-    read($fd, $data, 4) == 4 or die "Error while reading ${INPUT}: $!";
-    printf("%x", $data);
-    print(unpack("H$s", $data));
-}
-close($fd);
-```
-
 ```bash
-$ sudo perl reader.pl 32
+$ sudo perl reader.pl /dev/random 32
 0d090a040201010e090a0b0b02090d0b0a0307080f0a040c090a070d0505080
 ```
+
+> Please see [this script](reader.pl).
 
 ## Notes
 
