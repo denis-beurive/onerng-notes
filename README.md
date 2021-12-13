@@ -103,16 +103,17 @@ sudo cat /dev/ttyACM0
 
 However, this is not very convenient. This _quick and dirty_ [Perl script](reader.pl) gives better result:
 
-```Perl
+```perl
 use strict;
 
-open(my $fd, '<', '/dev/ttyACM0') or die "Cannot open /dev/ttyACM0: $!";
+my $INPUT = '/dev/ttyACM0';
+open(my $fd, '<', $INPUT) or die "Cannot open ${INPUT}: $!";
 binmode $fd;
 my $n=0;
 while($n++ < $ARGV[0]) {
     my $data;
     my $s;
-    read($fd, $data, 4) == 4 or die "Error while reading /dev/ttyACM0: $!";
+    read($fd, $data, 4) == 4 or die "Error while reading ${INPUT}: $!";
     printf("%x", $data);
     print(unpack("H$s", $data));
 }
@@ -280,6 +281,30 @@ déc. 13 15:24:19 labo systemd[1]: Started Add entropy to /dev/random 's pool a 
 ```
 
 That's it !
+
+Just for fun, let's read random data from `/dev/random`.
+
+```perl
+use strict;
+
+my $INPUT = '/dev/random'
+open(my $fd, '<', $INPUT) or die "Cannot open ${INPUT}: $!";
+binmode $fd;
+my $n=0;
+while($n++ < $ARGV[0]) {
+    my $data;
+    my $s;
+    read($fd, $data, 4) == 4 or die "Error while reading ${INPUT}: $!";
+    printf("%x", $data);
+    print(unpack("H$s", $data));
+}
+close($fd);
+```
+
+```bash
+$ sudo perl reader.pl 32
+0d090a040201010e090a0b0b02090d0b0a0307080f0a040c090a070d0505080
+```
 
 ## Notes
 
