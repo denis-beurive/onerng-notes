@@ -341,12 +341,12 @@ Then restart the daemon:
 
 ```bash
 $ sudo systemctl daemon-reload
-$ sudo systemctl restart rng-tools
 ```
 
 If the ONERNG is not plugged:
 
 ```bash
+$ sudo systemctl restart rng-tools
 $ systemctl status rng-tools
 ○ rng-tools.service - Add entropy to /dev/random 's pool a hardware RNG
      Loaded: loaded (/lib/systemd/system/rng-tools.service; enabled; vendor preset: enabled)
@@ -365,6 +365,7 @@ déc. 14 11:20:50 labo systemd[1]: rng-tools.service: Deactivated successfully.
 Then plug the ONERNG:
 
 ```bash
+$ sudo systemctl restart rng-tools
 $ systemctl status rng-tools
 ● rng-tools.service - Add entropy to /dev/random 's pool a hardware RNG
      Loaded: loaded (/lib/systemd/system/rng-tools.service; enabled; vendor preset: enabled)
