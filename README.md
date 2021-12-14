@@ -191,7 +191,7 @@ diehard_count_1s_byt|   0|    256000|     100|0.08184496|  PASSED
 
 ## The problem (Ubuntu 21.10)
 
-According to the Ubuntu documentation, we should use the _Systemd utility_ (instead of the _Upstart services_). See [this link](https://wiki.ubuntu.com/SystemdForUpstartUsers).
+According to the Ubuntu documentation, we should use the _Systemd services_ (instead of the _Upstart services_). See [this link](https://wiki.ubuntu.com/SystemdForUpstartUsers).
 
 > To determine which init daemon you are currently booting with, run:
 > 
@@ -309,6 +309,77 @@ Executing: /lib/systemd/systemd-sysv-install enable rng-tools
 
 > Please note that, if you do that, make sure to plug the OneRNG device! Otherwise, the `rngd` daemon tries to harvest entropy from the TPM (from `/dev/tpm0`). Please note that some computers are not equipped with TPM. In that case, you'll get the following error message: "`Unable to open file: /dev/tpm0`" (when running the command `systemctl status rng-tools`).
 
+## Custom launcher script
+
+You may want to write a custom launcher scrip for the RNG-TOOLS _Systemd_ service launcher.
+
+This script is an example: [onerng-service.sh](onerng-service.sh)
+
+Copy the script `onerng-service.sh` into the directory `/usr/bin/`:
+
+```bash
+$ sudo cp onerng-service.sh /usr/bin/
+$ chmod +x /usr/bin/onerng-service.sh
+```
+
+Then modify the RNG-TOOLS _Systemd_ service launcher:
+
+```bash
+$ cat rng-tools.service 
+[Unit]
+Description=Add entropy to /dev/random 's pool a hardware RNG
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/onerng-service.sh 
+
+[Install]
+WantedBy=dev-hwrng.device
+```
+
+Then restart the daemon:
+
+```bash
+$ sudo systemctl daemon-reload
+$ sudo systemctl restart rng-tools
+```
+
+If the ONERNG is not plugged:
+
+```bash
+$ systemctl status rng-tools
+○ rng-tools.service - Add entropy to /dev/random 's pool a hardware RNG
+     Loaded: loaded (/lib/systemd/system/rng-tools.service; enabled; vendor preset: enabled)
+     Active: inactive (dead) since Tue 2021-12-14 11:20:50 CET; 4s ago
+    Process: 12256 ExecStart=/usr/bin/onerng-service.sh (code=exited, status=0/SUCCESS)
+   Main PID: 12256 (code=exited, status=0/SUCCESS)
+        CPU: 3ms
+
+déc. 14 11:20:50 labo systemd[1]: Started Add entropy to /dev/random 's pool a hardware RNG.
+déc. 14 11:20:50 labo onerng-service.sh[12256]: Device file "/dev/ttyACM0" does not exist! Please make sure that the OneRNG device is plugged.
+déc. 14 11:20:50 labo systemd[1]: rng-tools.service: Deactivated successfully.
+```
+
+> You get a nice error message.
+
+Then plug the ONERNG:
+
+```bash
+$ systemctl status rng-tools
+● rng-tools.service - Add entropy to /dev/random 's pool a hardware RNG
+     Loaded: loaded (/lib/systemd/system/rng-tools.service; enabled; vendor preset: enabled)
+     Active: active (running) since Tue 2021-12-14 11:23:29 CET; 1s ago
+   Main PID: 12516 (sh)
+      Tasks: 2 (limit: 18478)
+     Memory: 460.0K
+        CPU: 12ms
+     CGroup: /system.slice/rng-tools.service
+             ├─12516 sh /usr/bin/onerng-service.sh
+             └─12517 /usr/sbin/rngd -r /dev/ttyACM0 -f
+
+déc. 14 11:23:29 labo systemd[1]: Started Add entropy to /dev/random 's pool a hardware RNG.
+```
+
 ## Notes
 
 The configuration file for `rng-tools` is supposed to be `/etc/default/rng-tools`. Please note that we add the line "`HRNGDEVICE=/dev/ttyACM0`" to the configuration file.
@@ -342,4 +413,12 @@ This file is loaded by the script `/etc/init.d/rng-tools` (**that should not be 
 > * https://bugzilla.redhat.com/show_bug.cgi?id=892178
 > * https://paolozaino.wordpress.com/2021/02/21/linux-configure-and-use-your-tpm-2-0-module-on-linux/
 > * https://wikimho.com/fr/q/askubuntu/414747
+
+
+
+
+
+
+
+
 
