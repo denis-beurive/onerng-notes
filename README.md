@@ -191,13 +191,17 @@ diehard_count_1s_byt|   0|    256000|     100|0.08184496|  PASSED
 
 ## The problem (Ubuntu 21.10)
 
-There is a problem with `rng-tools`. The OS entropy pool is not stocked up with random data.
+According to the Ubuntu documentation, we should use the _Systemd utility_ (instead of the _Upstart services_). See [this link](https://wiki.ubuntu.com/SystemdForUpstartUsers).
 
-Please run (as `root`): `systemctl restart rng-tools && systemctl status rng-tools`
+> To determine which init daemon you are currently booting with, run:
+> 
+> `ps -p1 | grep systemd && echo systemd || echo upstart`
+
+Please run: `sudo systemctl restart rng-tools && systemctl status rng-tools`
 
 ```bash
-(venv) $ systemctl restart rng-tools
-(venv) $ systemctl status rng-tools
+$ sudo systemctl restart rng-tools
+$ systemctl status rng-tools
 ● rng-tools.service - Add entropy to /dev/random 's pool a hardware RNG
      Loaded: loaded (/lib/systemd/system/rng-tools.service; enabled; vendor preset: enabled)
      Active: active (running) since Tue 2021-11-02 22:16:25 CET; 2s ago
@@ -213,9 +217,9 @@ nov. 02 22:16:25 labo rngd[19595]: read error
 nov. 02 22:16:25 labo rngd[19595]: read error
 ```
 
-## The solution
+You notice the error messages. There is a problem with `rng-tools`. The OS entropy pool is not stocked up with random data generated from the ONERNG random number generator.
 
-> According to the Ubuntu documentation, we should use the _Systemd systemctl utility_ (instead of the _init_ scripts in the `/etc/init.d` directory).
+## The solution
 
 You can see that:
 * the executed script is `/lib/systemd/system/rng-tools.service`.
@@ -260,7 +264,7 @@ ExecStart=/usr/sbin/rngd -r /dev/ttyACM0 -f
 WantedBy=dev-hwrng.device
 ```
 
-> Please note that you may add the option `-n 1` (`/usr/sbin/rngd -r /dev/ttyACM0 -f -n 1`) if the OneRGN device may not be connected and you don't have TPM.
+> Please note that you may add the option `-n 1` (`/usr/sbin/rngd -r /dev/ttyACM0 -f -n 1`) if the OneRGN device may not be connected **and you don't have TPM**.
 
 ```bash
 $ systemctl stop rng-tools
@@ -303,7 +307,7 @@ Synchronizing state of rng-tools.service with SysV service script with /lib/syst
 Executing: /lib/systemd/systemd-sysv-install enable rng-tools
 ```
 
-> Please note that, if you do that, make sure to plug the OneRNG device!
+> Please note that, if you do that, make sure to plug the OneRNG device! Otherwise, the `rngd` daemon tries to harvest entropy from the TPM (from `/dev/tpm0`). Please note that some computers are not equipped with TPM. In that case, you'll get the following error message: "`Unable to open file: /dev/tpm0`" (when running the command `systemctl status rng-tools`).
 
 ## Notes
 
@@ -332,7 +336,7 @@ HRNGDEVICE=/dev/ttyACM0
 #RNGDOPTIONS="--hrng=tpm --fill-watermark=90% --feed-interval=1"
 ```
 
-This file is loaded by the script `/etc/init.d/rng-tools` (that should nor be used!). But the configuration seems to be ignored!
+This file is loaded by the script `/etc/init.d/rng-tools` (**that should not be used, since we should use the _Systemd service_ instead of the _Upstart Service_!**).
 
 > Links about TPM:
 > * https://bugzilla.redhat.com/show_bug.cgi?id=892178
